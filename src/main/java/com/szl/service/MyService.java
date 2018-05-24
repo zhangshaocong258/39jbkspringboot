@@ -1,0 +1,143 @@
+package com.szl.service;
+
+import com.szl.dao.DiscaseDao;
+import com.szl.dao.RuleDao;
+import com.szl.dao.UserDao;
+import com.szl.domain.Discase;
+import com.szl.domain.Rule;
+import com.szl.domain.User;
+import com.szl.util.Filter;
+import com.szl.util.Repository;
+import com.szl.util.Word2vec;
+import com.szl.util.WordEntry;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import javax.annotation.PostConstruct;
+import java.io.File;
+import java.util.List;
+import java.util.Set;
+
+/**
+ * Created by zsc on 2017/1/18.
+ * 构造方法在@PostConstruct前执行
+ * fQuestions和rQuestions是为了构建fQuestionsMap和rQuestionsMap，rQuestionsMap是用来查询，最终得到有序的结果url序号，
+ * 然后通过查询fQuestionsMap得到最终的url信息，可以将rQuestionsMap和fQuestionsMap整合，节省空间
+ */
+@Service
+public class MyService implements ServiceInterface {
+
+    Word2vec word2vec;
+
+    @Autowired
+    private RuleDao ruleDao;
+
+    @Autowired
+    private UserDao userDao;
+
+    @Autowired
+    private DiscaseDao discaseDao;
+
+
+    @PostConstruct
+    public void init() {
+        Filter.initFilter();
+        File dicFile = new File("model/同义词new.txt");
+        File forestFile = new File("model/脉舌词典带标签.txt");
+        File w2v = new File("model/vec10.bin");
+        try {
+            Repository.readDic(dicFile);
+            Repository.readForest(forestFile);
+            Repository.genRepository(ruleDao);
+            word2vec = new Word2vec();
+            word2vec.loadGoogleModel(w2v);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    public User login(String username, String password) {
+//        System.out.println("输入的账号:" + username + "输入的密码:" + password);
+        //对输入账号进行查询,取出数据库中保存对信息
+        User user = userDao.selectUserByName(username);
+        if (user != null) {
+            System.out.println("查询出来的账号:" + user.getUserName() + " 密码:" + user.getUserPassword());
+            if (user.getUserName().equals(username) && user.getUserPassword().equals(password))
+                return user;
+        }
+        return user;
+    }
+
+    public String register(String username, String password, String confirmPassword) {
+//        System.out.println("输入的账号:" + username + "输入的密码:" + password);
+        //对输入账号进行查询,取出数据库中保存对信息
+        if (userDao.selectUserByName(username) == null) {
+            if (password.equals(confirmPassword)) {
+                User user = new User();
+                user.setUserName(username);
+                user.setUserPassword(password);
+                userDao.insertUser(user);
+                return "ok";
+            } else {
+                return "error2";
+            }
+        } else {
+            return "error1";
+        }
+
+    }
+
+
+//    public User selectUserById(Integer userId) {
+//        return userDao.selectUserById(userId);
+//    }
+//
+//    public User selectUserByName(String name) {
+//        return userDao.selectUserByName(name);
+//    }
+//
+//    public void updateUser(User user) {
+//        userDao.updateUser(user);
+//    }
+//
+//    public void deleteUserByName(String userName) {
+//        userDao.deleteUserByName(userName);
+//    }
+//
+//    public List<User> selectAllUser() {
+//        return userDao.selectAllUsers();
+//    }
+
+    public Set<WordEntry> distance(String word) {
+        return word2vec.distance(word);
+    }
+
+    public Discase selectDiscaseById(int id) {
+        return discaseDao.selectDiscaseById(id);
+    }
+
+
+    public void updateDiscase(Discase discase) {
+        discaseDao.updateDiscase(discase);
+    }
+
+    public void insertDiscase(Discase discase) {
+        discaseDao.insertDiscase(discase);
+    }
+
+    public void deleteDiscaseById(int id) {
+        discaseDao.deleteDiscase(id);
+    }
+
+    public List<Discase> selectAllDiscase() {
+        return discaseDao.selectAllDiscases();
+    }
+
+
+    public Rule selectByName(String name) {
+        return ruleDao.selectRuleByName(name);
+    }
+
+
+}
